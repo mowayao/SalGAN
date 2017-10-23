@@ -45,20 +45,21 @@ class DataFolder(Dataset):
 			label = rotate(label, angle, clip=True)
 			#edge = rotate(edge, angle, clip=True)
 			#prior = rotate(prior, angle, clip=True)
-			weight = np.zeros_like(label)
+
 
 		else:
 			label = cv2.resize(label, config.LABEL_SIZE) / 255.0
 			label = np.clip(label, 0, 1)
-		label[label < 0.5] = 0.
-		label[label > 0.5] = 1.
+		label[label < 0.5] = 0
+		label[label > 0.5] = 1
 		s = np.sum(label) / np.prod(config.LABEL_SIZE)
+		weight = np.zeros_like(label)
 		weight[label == 0] = 1. - s
 		weight[label == 1] = s
 		img = np.transpose(img, [2, 0, 1])
 		##float tensor
 		img = torch.FloatTensor(img)
-		label = torch.FloatTensor(label)
+		label = torch.FloatTensor(label.astype(np.int))
 		weight = torch.FloatTensor(weight)
 		return img, label, weight
 

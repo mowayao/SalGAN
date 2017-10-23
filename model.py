@@ -21,18 +21,22 @@ class Decoder(nn.Module):
 			nn.Conv2d(512, 512, 3, 1, 1),
 			nn.Conv2d(512, 512, 3, 1, 1),
 			nn.Conv2d(512, 512, 3, 1, 1),
+			#nn.ConvTranspose2d(512, 512, 4, 2, 1),
 			nn.Upsample(scale_factor=2, mode='bilinear'),
 			nn.Conv2d(512, 512, 3, 1, 1),
 			nn.Conv2d(512, 512, 3, 1, 1),
 			nn.Conv2d(512, 512, 3, 1, 1),
+			#nn.ConvTranspose2d(512, 512, 4, 2, 1),
 			nn.Upsample(scale_factor=2, mode='bilinear'),
 			nn.Conv2d(512, 256, 3, 1, 1),
 			nn.Conv2d(256, 256, 3, 1, 1),
 			nn.Conv2d(256, 256, 3, 1, 1),
+			#nn.ConvTranspose2d(256, 256, 4, 2, 1),
 			nn.Upsample(scale_factor=2, mode='bilinear'),
 			nn.Conv2d(256, 128, 3, 1, 1),
 			nn.Conv2d(128, 128, 3, 1, 1),
 			nn.Conv2d(128, 128, 3, 1, 1),
+			#nn.ConvTranspose2d(128, 128, 4, 2, 1),
 			nn.Upsample(scale_factor=2, mode='bilinear'),
 			nn.Conv2d(128, 64, 3, 1, 1),
 			nn.Conv2d(64, 64, 3, 1, 1),
@@ -46,9 +50,9 @@ class Decoder(nn.Module):
 class Encoder(nn.Module):
 	def __init__(self):
 		super(Encoder, self).__init__()
-		vgg_bn = models.vgg16(pretrained=True)
+		vgg_bn = models.vgg16_bn(pretrained=True)
 		params = list(vgg_bn.features.children())[:-1]
-		params = filter(lambda x: isinstance(x, nn.Conv2d) or isinstance(x, nn.MaxPool2d), params)
+		#params = filter(lambda x: not isinstance(x, nn.BatchNorm2d), params)
 		self.block = nn.Sequential(*params)
 	def forward(self, x):
 		return self.block(x)

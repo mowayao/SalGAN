@@ -9,13 +9,12 @@ import config
 import numpy as np
 from data import DataFolder
 from model import Discriminator, SalGAN
-import time
-import datetime
-import logging
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import os
-data_dirs = [("/media/mowayao/data/salient/data/ECSSD/train/images", "/media/mowayao/data/salient/data/ECSSD/train/gt"),
+data_dirs = [
+			 #("/media/mowayao/data/salient/data/ECSSD/train/images", "/media/mowayao/data/salient/data/ECSSD/train/gt"),
              ("/media/mowayao/data/salient/data/MSRA10K/images", "/media/mowayao/data/salient/data/MSRA10K/gt"),
-             ("/media/mowayao/data/salient/data/HKU-IS/imgs", "/media/mowayao/data/salient/data/HKU-IS/gt")
+             #("/media/mowayao/data/salient/data/HKU-IS/imgs", "/media/mowayao/data/salient/data/HKU-IS/gt")
              ]
 
 test_dirs = [("/media/mowayao/data/salient/data/ECSSD/test/images", "/media/mowayao/data/salient/data/ECSSD/test/gt")
@@ -62,12 +61,13 @@ optimizer = optim.SGD(
 			 {'params': Dis.parameters(), 'lr': config.LEARNING_RATE, 'momentum':0.9, 'weight_decay':5e-4},
             ])
 evaluation = nn.L1Loss()
-
+scheduler = MultiStepLR(optimizer, milestones=[10,25], gamma=0.3)
 best_eval = None
 for epoch in xrange(1, config.NUM_EPOCHS+1):
 	Sal.train()
 	sum_train_mae = 0
 	sum_train_loss = 0
+	sum_train_gan = 0
 	##train
 	for iter_cnt, (img_batch, label_batch, weights) in enumerate(train_data):
 
@@ -80,12 +80,12 @@ for epoch in xrange(1, config.NUM_EPOCHS+1):
 		real_out = Dis(torch.cat((img_batch, label_batch.unsqueeze(dim=1)), dim=1))
 		dis_out = torch.cat((fake_out, real_out), dim=1)
 		dis_label = Variable(torch.cat((torch.zeros(fake_out.size()), torch.ones(real_out.size())), dim=1)).cuda()
-
 		gan_loss = F.binary_cross_entropy(dis_out, dis_label)
-		loss = F.binary_cross_entropy(pred_label, label_batch, weights) + gan_loss
+		loss = F.binary_cross_entropy(pred_label, label_batch, weights) + 0.05*gan_loss
 		mae = evaluation(pred_label, label_batch)
 		sum_train_loss += loss.data[0]
 		sum_train_mae += mae.data[0]
+		sum_train_gan += gan_loss.data[0]
 		loss.backward()
 		optimizer.step()
 
@@ -99,28 +99,30 @@ for epoch in xrange(1, config.NUM_EPOCHS+1):
 	sum_eval_mae = 0
 	sum_eval_loss = 0
 	num_eval = 0
+	scheduler.step()
 	for iter_cnt, (img_batch, label_batch, weights) in enumerate(test_data):
 		img_batch = Variable(img_batch).cuda()
 		label_batch = Variable(label_batch).cuda()
+		weights = Variable(weights).cuda()
 		pred_label = Sal(img_batch)
-		probs = torch.squeeze(pred_label, dim=1)
-		#loss = F.binary_cross_entropy(probs, label_batch)
-		mae = evaluation(pred_label, label_batch)
+		loss = F.binary_cross_entropy(pred_label, label_batch, weights)
+		#mae = evaluation(pred_label, label_batch)
 		#sum_eval_loss += loss.data[0] * img_batch.size(0)
-		sum_eval_mae += mae.data[0] * img_batch.size(0)
+		sum_eval_loss += loss.data[0] * img_batch.size(0)
 		num_eval += img_batch.size(0)
 	#eval_loss = sum_eval_loss / num_eval
-	eval_mae = sum_eval_mae / num_eval
-	print "Validation \t loss:{} \t mae:{}".format(epoch,
+	eval_loss = sum_eval_loss / num_eval
+	print "Validation \t loss:{} \t loss:{}".format(epoch,
 	                                         #eval_loss,
-	                                         eval_mae)
-	if best_eval is None or best_eval < eval_mae:
-		best_eval = eval_mae
+	                                         eval_loss)
+	if best_eval is None or best_eval < eval_loss:
+		best_eval = eval_loss
 		state = {
 			'net': Sal._modules,
+			'gan': Dis._modules,
 			'mae': best_eval,
 			'epoch': epoch,
 		}
 		if not os.path.isdir('checkpoint'):
 			os.mkdir('checkpoint')
-		torch.save(state, './checkpoint/model.pth')
+		torch.save(state, './checkpoint/hehe_model.pth')
