@@ -12,9 +12,9 @@ from model import Discriminator, SalGAN
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 import os
 data_dirs = [
-			 #("/media/mowayao/data/salient/data/ECSSD/train/images", "/media/mowayao/data/salient/data/ECSSD/train/gt"),
+			 ("/media/mowayao/data/salient/data/ECSSD/train/images", "/media/mowayao/data/salient/data/ECSSD/train/gt"),
              ("/media/mowayao/data/salient/data/MSRA10K/images", "/media/mowayao/data/salient/data/MSRA10K/gt"),
-             #("/media/mowayao/data/salient/data/HKU-IS/imgs", "/media/mowayao/data/salient/data/HKU-IS/gt")
+             ("/media/mowayao/data/salient/data/HKU-IS/imgs", "/media/mowayao/data/salient/data/HKU-IS/gt")
              ]
 
 test_dirs = [("/media/mowayao/data/salient/data/ECSSD/test/images", "/media/mowayao/data/salient/data/ECSSD/test/gt")
@@ -56,12 +56,12 @@ Sal = SalGAN().cuda()
 Dis = Discriminator(config.IMG_SIZE).cuda()
 #Sal._modules = torch.load("checkpoint/model.pth")['net']
 optimizer = optim.SGD(
-			[{'params': Sal.encoder.parameters(), 'lr': config.BASE_LEARNING_RATE, 'momentum':0.9, 'weight_decay':5e-4},
-			 {'params': Sal.decoder.parameters(), 'lr': config.LEARNING_RATE, 'momentum':0.9, 'weight_decay':5e-4},
-			 {'params': Dis.parameters(), 'lr': config.LEARNING_RATE, 'momentum':0.9, 'weight_decay':5e-4},
+			[{'params': Sal.encoder.parameters(), 'lr': config.BASE_LEARNING_RATE, 'momentum':0.88, 'weight_decay':1e-4},
+			 {'params': Sal.decoder.parameters(), 'lr': config.LEARNING_RATE, 'momentum':0.88, 'weight_decay':1e-4},
+			 {'params': Dis.parameters(), 'lr': config.LEARNING_RATE, 'momentum':0.88, 'weight_decay':1e-4},
             ])
 evaluation = nn.L1Loss()
-scheduler = MultiStepLR(optimizer, milestones=[10,25], gamma=0.3)
+scheduler = MultiStepLR(optimizer, milestones=[10,25], gamma=0.2)
 best_eval = None
 for epoch in xrange(1, config.NUM_EPOCHS+1):
 	Sal.train()
@@ -80,7 +80,7 @@ for epoch in xrange(1, config.NUM_EPOCHS+1):
 		real_out = Dis(torch.cat((img_batch, label_batch.unsqueeze(dim=1)), dim=1))
 		dis_out = torch.cat((fake_out, real_out), dim=1)
 		dis_label = Variable(torch.cat((torch.zeros(fake_out.size()), torch.ones(real_out.size())), dim=1)).cuda()
-		gan_loss = F.binary_cross_entropy(dis_out, dis_label)
+		gan_loss = F.binary_cross_entropy(dis_out, dis_label) + F.binary_cross_entropy(real_out, Variable(torch.ones(real_out.size())).cuda())
 		loss = F.binary_cross_entropy(pred_label, label_batch, weights) + 0.05*gan_loss
 		mae = evaluation(pred_label, label_batch)
 		sum_train_loss += loss.data[0]
@@ -125,4 +125,4 @@ for epoch in xrange(1, config.NUM_EPOCHS+1):
 		}
 		if not os.path.isdir('checkpoint'):
 			os.mkdir('checkpoint')
-		torch.save(state, './checkpoint/hehe_model.pth')
+		torch.save(state, './checkpoint/gan_model.pth')
